@@ -94,6 +94,7 @@ type Driver struct {
 	CacheMode        string
 	IOMode           string
 	NICModelElement  string
+	ExtraFile	 string
 	connectionString string
 	conn             *libvirt.Connect
 	VM               *libvirt.Domain
@@ -143,6 +144,11 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:  "kvm-nic-type",
 			Usage: "Network interface model type: default, e1000, rtl8139, virtio, etc.",
 			Value: "default",
+		},
+		mcnflag.StringFlag{
+			Name:  "kvm-extra-file",
+			Usage: "adds the specified file to /home/docker",
+			Value: "",
 		},
 		mcnflag.StringFlag{
 			EnvVar: "KVM_SSH_USER",
@@ -214,6 +220,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	} else {
 		d.NICModelElement = fmt.Sprintf("<model type='%s'/>", flags.String("kvm-nic-type"))
 	}
+	d.ExtraFile = flags.String("kvm-extra-file")
 	return nil
 }
 
@@ -728,6 +735,26 @@ func (d *Driver) generateDiskImage(size int) error {
 	if _, err := tw.Write([]byte(pubKey)); err != nil {
 		return err
 	}
+	if d.ExtraFile != "" {
+		log.Debugf("Reading extra file from: %s", d.ExtraFile)
+		fi, err := os.Stat(d.ExtraFile)
+		if err != nil {
+			return err
+		}
+		file = &tar.Header{Name: fi.Name(), Size: fi.Size(), Mode: 0644}
+		if err := tw.WriteHeader(file); err != nil {
+			return err
+		}
+		srcFile, err := os.Open(d.ExtraFile)
+		if err != nil {
+			return err
+		}
+		defer srcFile.Close()
+		_, err = io.Copy(tw, srcFile)
+		if err != nil {
+		  return err
+		}
+	}
 	file = &tar.Header{Name: ".ssh/authorized_keys2", Size: int64(len(pubKey)), Mode: 0644}
 	if err := tw.WriteHeader(file); err != nil {
 		return err
@@ -735,6 +762,7 @@ func (d *Driver) generateDiskImage(size int) error {
 	if _, err := tw.Write([]byte(pubKey)); err != nil {
 		return err
 	}
+
 	if err := tw.Close(); err != nil {
 		return err
 	}

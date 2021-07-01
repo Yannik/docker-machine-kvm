@@ -63,6 +63,7 @@ Here are all currently driver parameters listed that you can use.
 | **--kvm-cache-mode** | Sets the caching mode of the kvm machine. Defaults to `default`.   |    
 | **--kvm-io-mode-url** | Sets the disk io mode of the kvm machine. Defaults to `threads`.   |      
 | **--kvm-nic-type** | Sets the model of the network interfaces of the kvm machine. Defaults to `default`. |
+| **--kvm-extra-file** | Adds the specified file to /home/docker (optional). |
 
 
 
